@@ -1,0 +1,81 @@
+{
+  "name": "amp-free-usage",
+  "displayName": "Amp Free Usage",
+  "description": "View your Amp Free tier usage bar",
+  "version": "1.0.0",
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": ["Other"],
+  "activationEvents": ["onCommand:amp-free-usage.show"],
+  "main": "./extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "amp-usage-container",
+          "title": "Amp Usage",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "amp-usage-container": [
+        {
+          "id": "amp-usage-view",
+          "name": "Free Tier Usage",
+          "type": "tree"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "amp-free-usage.show",
+        "title": "Show Amp Free Usage",
+        "category": "Amp"
+      },
+      {
+        "command": "amp-free-usage.refresh",
+        "title": "Refresh Usage",
+        "category": "Amp",
+        "icon": "$(refresh)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "amp-free-usage.refresh",
+          "when": "view == amp-usage-view",
+          "group": "navigation"
+        }
+      ]
+    },
+    "configuration": [
+      {
+        "title": "Amp Free Usage",
+        "properties": {
+          "ampFreeUsage.accessToken": {
+            "type": "string",
+            "default": "",
+            "description": "Your Amp session cookie (from browser Network tab)",
+            "markdownDescription": "Your Amp session cookie value. **Keep this secret - do not commit to version control!** Get it from: 1) Open ampcode.com 2) F12 → Network 3) Click getFreeTierUsage request 4) Copy `session=` cookie value"
+          },
+          "ampFreeUsage.apiUrl": {
+            "type": "string",
+            "default": "https://ampcode.com/_app/remote/w6b2h6/getFreeTierUsage",
+            "description": "API endpoint to fetch Amp Free tier usage data"
+          },
+          "ampFreeUsage.refreshInterval": {
+            "type": "number",
+            "default": 5,
+            "description": "Auto-refresh interval in minutes"
+          }
+        }
+      }
+    ]
+  },
+  "scripts": {},
+  "devDependencies": {
+    "@types/vscode": "^1.75.0"
+  }
+}
