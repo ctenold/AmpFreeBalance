@@ -114,8 +114,9 @@ class UsageProvider {
     const percentUsed = Math.round(this.usageData.percentUsed);
     const remainingDollars = (this.usageData.remaining / 100).toFixed(2);
     const usedDollars = (this.usageData.used / 100).toFixed(2);
+    const replenishmentDollars = (this.usageData.replenishmentRate / 100).toFixed(2);
     this.statusBar.text = `Amp Free: $${remainingDollars} remaining`;
-    this.statusBar.tooltip = `Used: $${usedDollars} of $${(this.usageData.quota / 100).toFixed(2)} (${percentUsed}%) | Replenishes: +${this.usageData.replenishmentRate}/hour`;
+    this.statusBar.tooltip = `Used: $${usedDollars} of $${(this.usageData.quota / 100).toFixed(2)} (${percentUsed}%) | Replenishes: +$${replenishmentDollars}/hour (up to $10)`;
     this.statusBar.show();
   }
 
