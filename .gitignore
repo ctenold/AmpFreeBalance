@@ -4,3 +4,4 @@ out/
 extension/
 *.vsix
 .DS_Store
+*.pptx
