@@ -21,7 +21,7 @@ A lightweight VS Code extension that displays your Amp Free tier quota usage wit
 
 ### As VSIX Package
 
-1. Create a `.vsix` package (requires npm - skip if you don't have it)
+1. Create a `.vsix` package
 2. In VS Code: **Ctrl+Shift+P** → "Install from VSIX" → select the package
 
 ## Configuration
