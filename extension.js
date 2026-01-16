@@ -26,15 +26,27 @@ class UsageProvider {
   startAutoRefresh() {
     if (this.refreshTimer) {
       clearInterval(this.refreshTimer);
+      this.refreshTimer = null;
     }
 
     const config = vscode.workspace.getConfiguration('ampFreeBalance');
     const intervalMinutes = config.get('refreshInterval', 5);
-    const intervalMs = intervalMinutes * 60 * 1000;
+    
+    // Validate interval (minimum 1 minute, maximum 60 minutes)
+    const validInterval = Math.max(1, Math.min(60, intervalMinutes));
+    const intervalMs = validInterval * 60 * 1000;
 
-    this.refreshTimer = setInterval(() => {
-      this.refresh();
-    }, intervalMs);
+    if (intervalMinutes !== validInterval) {
+      // If user set invalid interval, update to valid value
+      config.update('refreshInterval', validInterval, true);
+      vscode.window.showWarningMessage(`Refresh interval adjusted to ${validInterval} minutes (must be between 1-60)`);
+    }
+
+    if (validInterval > 0) {
+      this.refreshTimer = setInterval(() => {
+        this.refresh();
+      }, intervalMs);
+    }
   }
 
   async refresh() {
@@ -52,44 +64,86 @@ class UsageProvider {
         this.onDidChangeTreeDataEmitter.fire();
         return;
       }
-      
+
+      // Basic token validation
+      if (accessToken.length < 10) {
+        throw new Error('Session token appears to be invalid (too short). Please reconfigure your token.');
+      }
+
       // Reset command to refresh when configured
       this.statusBar.command = 'amp-free-balance.refresh';
 
       console.log('[Amp Free Balance] Fetching balance data');
-      console.log('[Amp Free Balance] Token length:', accessToken.length, 'First 50 chars:', accessToken.substring(0, 50));
+
+      // Use fetch with proper error handling and timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
 
       const options = {
         method: 'GET',
         headers: {
-          'Cookie': `session=${accessToken}`
+          'Cookie': `session=${accessToken}`,
+          'User-Agent': 'VSCode-AmpFreeBalance/1.3.2'
         },
-        credentials: 'include'
+        credentials: 'include',
+        signal: controller.signal
       };
 
-      const response = await fetch(apiUrl, options);
-      
+      let response;
+      try {
+        response = await fetch(apiUrl, options);
+      } catch (fetchError) {
+        if (fetchError.name === 'AbortError') {
+          throw new Error('Request timed out. Check your internet connection.');
+        }
+        // Check if fetch is available
+        if (typeof fetch === 'undefined') {
+          throw new Error('Network request failed: fetch API not available in this VS Code version.');
+        }
+        throw new Error(`Network error: ${fetchError.message}`);
+      } finally {
+        clearTimeout(timeoutId);
+      }
+
       if (!response.ok) {
-        throw new Error(`API returned ${response.status}: ${response.statusText}`);
+        if (response.status === 401 || response.status === 403) {
+          throw new Error('Authentication failed. Your session token may have expired. Please reconfigure.');
+        } else if (response.status === 429) {
+          throw new Error('Rate limited. Please try again later.');
+        } else if (response.status >= 500) {
+          throw new Error('Server error. Amp API may be temporarily unavailable.');
+        } else {
+          throw new Error(`API returned ${response.status}: ${response.statusText}`);
+        }
       }
 
       const text = await response.text();
-      console.log('[Amp Free Balance] Raw response:', text.substring(0, 200));
-      
-      const result = JSON.parse(text);
-      console.log('[Amp Free Balance] Parsed result:', result);
-      
-      let data = result.result;
-      
-      // Handle nested JSON string
-      if (typeof data === 'string') {
-        data = JSON.parse(data);
+      console.log('[Amp Free Balance] Raw response length:', text.length);
+
+      let result;
+      try {
+        result = JSON.parse(text);
+      } catch (parseError) {
+        throw new Error('Invalid JSON response from API. The service may be experiencing issues.');
       }
 
-      console.log('[Amp Free Balance] Data array:', Array.isArray(data), 'Length:', data?.length, 'Data:', data);
+      console.log('[Amp Free Balance] Parsed result type:', typeof result);
+
+      let data = result.result;
+
+      // Handle nested JSON string
+      if (typeof data === 'string') {
+        try {
+          data = JSON.parse(data);
+        } catch (nestedParseError) {
+          throw new Error('Invalid nested JSON in API response.');
+        }
+      }
+
+      console.log('[Amp Free Balance] Data type:', typeof data, 'Is array:', Array.isArray(data), 'Length:', data?.length);
 
       if (!Array.isArray(data) || data.length < 7) {
-        throw new Error(`Invalid API response format. Got: ${JSON.stringify(data)}`);
+        throw new Error(`Unexpected API response format. Expected array with at least 7 elements, got: ${JSON.stringify(data).substring(0, 100)}...`);
       }
 
       const quota = parseInt(data[2]);
@@ -97,6 +151,11 @@ class UsageProvider {
       const remaining = quota - used;
       const percentUsed = (used / quota) * 100;
       const replenishmentRate = parseInt(data[3]);
+
+      // Validate parsed data
+      if (isNaN(quota) || isNaN(used) || isNaN(replenishmentRate) || quota <= 0) {
+        throw new Error('Invalid numeric data in API response. The service may be experiencing issues.');
+      }
 
       this.usageData = {
         quota,
@@ -112,28 +171,31 @@ class UsageProvider {
       const errorMsg = error instanceof Error ? error.message : String(error);
       console.error('[Amp Free Balance] Error:', errorMsg);
       this.statusBar.text = '$(error) Amp Free Balance: Error';
-      this.statusBar.tooltip = errorMsg;
+      this.statusBar.tooltip = `Error: ${errorMsg}`;
+      this.usageData = null; // Clear stale data on error
+    } finally {
+      this.onDidChangeTreeDataEmitter.fire();
     }
-
-    this.onDidChangeTreeDataEmitter.fire();
   }
+
+
 
   updateStatusBar() {
     if (!this.usageData) return;
 
     const config = vscode.workspace.getConfiguration('ampFreeBalance');
     const lowBalanceThreshold = config.get('lowBalanceThreshold', 1) * 100; // Convert to cents
-    
+
     const percentUsed = Math.round(this.usageData.percentUsed);
     const remainingDollars = (this.usageData.remaining / 100).toFixed(2);
     const usedDollars = (this.usageData.used / 100).toFixed(2);
     const replenishmentDollars = (this.usageData.replenishmentRate / 100).toFixed(2);
     const quotaDollars = (this.usageData.quota / 100).toFixed(2);
-    
+
     // Determine color coding based on remaining balance
     let icon = '$';
     let warningMessage = null;
-    
+
     if (lowBalanceThreshold > 0 && this.usageData.remaining < lowBalanceThreshold) {
       icon = '⚠️';
       warningMessage = `Low balance: $${remainingDollars} remaining (threshold: $${(lowBalanceThreshold / 100).toFixed(2)})`;
@@ -144,11 +206,11 @@ class UsageProvider {
     } else {
       icon = '🟢'; // Green for <70% used
     }
-    
+
     this.statusBar.text = `${icon} Amp Free Balance: $${remainingDollars}`;
     this.statusBar.tooltip = `Used: $${usedDollars} of $${quotaDollars} (${percentUsed}%) | Daily replenishment: +$${replenishmentDollars}/hour`;
     this.statusBar.show();
-    
+
     // Show warning popup if balance is low
     if (warningMessage) {
       vscode.window.showWarningMessage(warningMessage);
@@ -163,7 +225,7 @@ class UsageProvider {
     if (!this.usageData) {
       const config = vscode.workspace.getConfiguration('ampFreeBalance');
       const accessToken = config.get('accessToken');
-      
+
       if (!accessToken) {
         // Not configured - show setup instructions
         const items = [
@@ -184,8 +246,8 @@ class UsageProvider {
         ];
         return Promise.resolve(items);
       }
-      
-      // Configured but loading
+
+      // Configured but loading/error
       return Promise.resolve([
         new UsageItem('⏳ Loading balance...', vscode.TreeItemCollapsibleState.None)
       ]);
@@ -241,6 +303,10 @@ class UsageProvider {
   dispose() {
     if (this.refreshTimer) {
       clearInterval(this.refreshTimer);
+      this.refreshTimer = null;
+    }
+    if (this.statusBar) {
+      this.statusBar.dispose();
     }
   }
 }
@@ -276,7 +342,7 @@ function activate(context) {
 
       if (choice === '🌐 Open') {
         vscode.env.openExternal(vscode.Uri.parse('https://ampcode.com/settings'));
-        
+
         const next = await vscode.window.showInputBox({
           title: '📋 Steps 2-6: Get Session Token',
           prompt: 'Step 2: Press F12 → Network tab\nStep 3: Look for "getFreeTierUsage" request\nStep 4: Right-click → Copy as cURL\nStep 5: Paste here\nStep 6: Done!',
@@ -287,14 +353,14 @@ function activate(context) {
         if (next) {
           // Try to parse session cookie from various formats
           let token = null;
-          
+
           // Try Windows cURL format with -b flag: -b "...session=VALUE;..."
           // Session token ends at semicolon, caret, space, or quote
           const winCurlMatch = next.match(/session=([^;\s^"']+)/);
           if (winCurlMatch && winCurlMatch[1]) {
             token = winCurlMatch[1];
           }
-          
+
           // Try cURL format: -H "Cookie: session=..."
           if (!token) {
             const curlMatch = next.match(/-H\s+["']Cookie:\s+session=([^"';]+)/);
@@ -302,7 +368,7 @@ function activate(context) {
               token = curlMatch[1];
             }
           }
-          
+
           // Try fetch with headers object: "Cookie": "session=..."
           if (!token) {
             const fetchMatch = next.match(/"Cookie":\s*"session=([^"]+)/);
@@ -310,7 +376,7 @@ function activate(context) {
               token = fetchMatch[1];
             }
           }
-          
+
           // Try simple session=value format (fallback)
           if (!token) {
             const simpleMatch = next.match(/session=([a-zA-Z0-9_\-\*\.]+)/);
@@ -318,25 +384,26 @@ function activate(context) {
               token = simpleMatch[1];
             }
           }
-          
+
           if (token && token.length > 10) {
             const config = vscode.workspace.getConfiguration('ampFreeBalance');
             await config.update('accessToken', token, true);
-            
+
             vscode.window.showInformationMessage(
               '✅ Session token saved!',
               { detail: `Your balance will update automatically. If authentication fails later, refresh the token using the same steps.` }
             );
-            
-            console.log('[Amp Free Balance] Token parsed:', token.substring(0, 30) + '...');
-            
-            // Trigger refresh
+
+            console.log('[Amp Free Balance] Token parsed and saved successfully');
+
+            // Trigger refresh and restart timer
+            provider.startAutoRefresh();
             provider.refresh();
           } else {
             vscode.window.showErrorMessage(
               '❌ Could not parse session cookie.\n\nMake sure you pasted the full cURL command starting with "curl".'
             );
-            console.error('[Amp Free Balance] Failed to parse token. Found:', token);
+            console.error('[Amp Free Balance] Failed to parse valid token');
           }
         }
       }
@@ -347,12 +414,14 @@ function activate(context) {
 
   const configChangeCommand = vscode.workspace.onDidChangeConfiguration(e => {
     if (e.affectsConfiguration('ampFreeBalance')) {
-      provider.refresh();
+      console.log('[Amp Free Balance] Configuration changed, updating...');
+      provider.startAutoRefresh(); // Restart timer with new interval
+      provider.refresh(); // Refresh immediately
     }
   });
 
   context.subscriptions.push(showCommand, refreshCommand, authCommand, configChangeCommand, provider);
-  
+
   console.log('[Amp Free Balance] Extension initialized successfully');
 }
 

@@ -104,7 +104,7 @@ The status bar displays your remaining balance with color-coded status:
 
 ### Sidebar Panel (Left Activity Bar)
 
-Click the **$** icon to open the Amp Free Balance sidebar showing:
+Click the **Amp Free Balance** icon to open the Amp Free Balance sidebar showing:
 - Visual progress bar
 - Used / Total quota
 - Remaining balance
@@ -172,7 +172,20 @@ To modify or extend this extension:
 
 ## Changelog
 
-### v1.3.0 (Latest)
+### v1.3.2 (Latest)
+- ✅ Improved API reliability with timeout handling and better error messages
+- ✅ Enhanced error handling with specific error types (auth, rate limit, server errors)
+- ✅ Fixed configuration changes - timer now properly restarts on interval updates
+- ✅ Added input validation for refresh intervals (1-60 minutes) and session tokens
+- ✅ Improved memory management with proper timer cleanup
+- ✅ Better security with session token format validation
+
+### v1.3.1
+- ✅ Updated publisher to ctenold (community-maintained)
+- ✅ Added links to official Amp resources
+- ✅ Version bump for release consistency
+
+### v1.3.0
 - ✅ Updated publisher to ctenold (community-maintained)
 - ✅ Added links to official Amp resources
 - ✅ Version bump for release consistency
