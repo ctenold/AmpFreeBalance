@@ -2,7 +2,9 @@
 
 A professional VS Code extension for monitoring your Amp API free tier balance and quota usage in real-time. Get immediate visibility into your remaining balance and usage patterns with automatic refresh and intuitive UI components.
 
-**Note:** This is a community-developed extension, not affiliated with the official Amp project.
+**Note:** This is a community-developed extension, not affiliated with the official Amp project. For official Amp resources, see [ampcode.com](https://ampcode.com) and the [official Amp VS Code extension](https://marketplace.visualstudio.com/items?itemName=amp.amp-vscode).
+
+**GitHub:** [ctenold/AmpFreeBalance](https://github.com/ctenold/AmpFreeBalance)
 
 ## Features
 
@@ -162,7 +164,12 @@ To modify or extend this extension:
 
 ## Changelog
 
-### v1.0.0 (Latest)
+### v1.3.0 (Latest)
+- ✅ Updated publisher to ctenold (community-maintained)
+- ✅ Added links to official Amp resources
+- ✅ Version bump for release consistency
+
+### v1.0.0
 - ✅ Color-coded balance status (🟢 🟡 🔴 ⚠️)
 - ✅ Low balance warnings with configurable threshold
 - ✅ Auto-parsing of cURL session tokens
