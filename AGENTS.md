@@ -38,7 +38,13 @@ That's it. Your balance will display in the status bar.
 ⚠️ Warning  = Balance below threshold
 ```
 
-Hover over status bar for detailed breakdown.
+**Hover over status bar** for detailed breakdown showing:
+- Used and total quota in USD
+- Usage percentage
+- Hourly replenishment rate
+
+![Status Bar Demo](media/status-bar-demo.png)
+![Hover Tooltip Demo](media/hover-tooltip-demo.png)
 
 ## Settings
 
@@ -85,6 +91,16 @@ All available via **Ctrl+Shift+P**
 Clone the repo and press **F5** to test in development mode.
 
 Changes to `extension.js` or `package.json` require reload (**Ctrl+R**).
+
+## Release Process
+
+1. Update version in `package.json` (e.g., `1.3.0` → `1.3.1`)
+2. Commit changes: `git add -A && git commit -m "v1.3.1: Description"`
+3. Push to main: `git push origin main`
+4. Create tag: `git tag v1.3.1 && git push origin v1.3.1`
+5. GitHub Action automatically builds `.vsix` and creates release on GitHub
+
+**Note:** The workflow in `.github/workflows/publish.yml` triggers on `v*` tags and auto-publishes to Releases tab.
 
 ## License
 
