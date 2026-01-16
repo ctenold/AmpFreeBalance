@@ -1,74 +1,89 @@
 {
-  "name": "amp-free-usage",
-  "displayName": "Amp Free Usage",
-  "description": "View your Amp Free tier usage bar",
+  "name": "amp-free-balance",
+  "displayName": "Amp Free Balance",
+  "description": "Real-time monitoring of your Amp API free tier balance and quota usage",
   "version": "1.0.0",
+  "publisher": "ampdev",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ctenold/AmpFreeBalance"
+  },
   "engines": {
     "vscode": "^1.75.0"
   },
-  "categories": ["Other"],
-  "activationEvents": ["onCommand:amp-free-usage.show"],
+  "categories": ["Monitoring", "Other"],
   "main": "./extension.js",
   "contributes": {
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "amp-usage-container",
-          "title": "Amp Usage",
+          "id": "amp-balance-container",
+          "title": "Amp Free Balance",
           "icon": "media/icon.svg"
         }
       ]
     },
     "views": {
-      "amp-usage-container": [
+      "amp-balance-container": [
         {
-          "id": "amp-usage-view",
-          "name": "Free Tier Usage",
+          "id": "amp-balance-view",
+          "name": "Free Balance",
           "type": "tree"
         }
       ]
     },
     "commands": [
       {
-        "command": "amp-free-usage.show",
-        "title": "Show Amp Free Usage",
-        "category": "Amp"
+        "command": "amp-free-balance.show",
+        "title": "Show Free Balance Status",
+        "category": "Amp Free Balance"
       },
       {
-        "command": "amp-free-usage.refresh",
-        "title": "Refresh Usage",
-        "category": "Amp",
+        "command": "amp-free-balance.refresh",
+        "title": "Refresh Balance Data",
+        "category": "Amp Free Balance",
         "icon": "$(refresh)"
+      },
+      {
+        "command": "amp-free-balance.authenticate",
+        "title": "Configure Session Token",
+        "category": "Amp Free Balance"
       }
     ],
     "menus": {
       "view/title": [
         {
-          "command": "amp-free-usage.refresh",
-          "when": "view == amp-usage-view",
+          "command": "amp-free-balance.refresh",
+          "when": "view == amp-balance-view",
           "group": "navigation"
         }
       ]
     },
     "configuration": [
       {
-        "title": "Amp Free Usage",
+        "title": "Amp Free Balance",
         "properties": {
-          "ampFreeUsage.accessToken": {
+          "ampFreeBalance.accessToken": {
             "type": "string",
             "default": "",
-            "description": "Your Amp session cookie (from browser Network tab)",
-            "markdownDescription": "Your Amp session cookie value. **Keep this secret - do not commit to version control!** Get it from: 1) Open ampcode.com 2) F12 → Network 3) Click getFreeTierUsage request 4) Copy `session=` cookie value"
+            "description": "Session authentication token for Amp API access",
+            "markdownDescription": "Your Amp session authentication token. **⚠️ Keep this secret** - do not commit to version control! See 'Configure Amp Session' command for automated setup, or manually retrieve from ampcode.com settings page."
           },
-          "ampFreeUsage.apiUrl": {
+          "ampFreeBalance.apiUrl": {
             "type": "string",
             "default": "https://ampcode.com/_app/remote/w6b2h6/getFreeTierUsage",
-            "description": "API endpoint to fetch Amp Free tier usage data"
+            "description": "API endpoint for fetching free tier balance data"
           },
-          "ampFreeUsage.refreshInterval": {
+          "ampFreeBalance.refreshInterval": {
             "type": "number",
             "default": 5,
-            "description": "Auto-refresh interval in minutes"
+            "description": "Automatic refresh interval in minutes"
+          },
+          "ampFreeBalance.lowBalanceThreshold": {
+            "type": "number",
+            "default": 1,
+            "description": "Low balance warning threshold in dollars",
+            "markdownDescription": "Show warning alert when balance drops below this amount (in USD). Set to 0 to disable. Default: $1.00"
           }
         }
       }
