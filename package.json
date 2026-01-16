@@ -2,7 +2,7 @@
   "name": "amp-free-balance",
   "displayName": "Amp Free Balance",
   "description": "Real-time monitoring of your Amp API free tier balance and quota usage",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "publisher": "ampdev",
   "repository": {
     "type": "git",
@@ -12,6 +12,7 @@
     "vscode": "^1.75.0"
   },
   "categories": ["Monitoring", "Other"],
+  "activationEvents": ["onStartupFinished"],
   "main": "./extension.js",
   "contributes": {
     "viewsContainers": {
