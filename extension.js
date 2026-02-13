@@ -142,15 +142,38 @@ class UsageProvider {
 
       console.log('[Amp Free Balance] Data type:', typeof data, 'Is array:', Array.isArray(data), 'Length:', data?.length);
 
-      if (!Array.isArray(data) || data.length < 7) {
-        throw new Error(`Unexpected API response format. Expected array with at least 7 elements, got: ${JSON.stringify(data).substring(0, 100)}...`);
+      let quota, used, replenishmentRate;
+
+      if (Array.isArray(data) && data.length >= 2 && typeof data[0] === 'object' && data[0] !== null) {
+        // New format: first element is a schema map like {"bucket":1,"quota":2,"hourlyReplenishment":3,"used":5,...}
+        // Remaining elements are the values indexed by those positions
+        const schema = data[0];
+        const values = data.slice(1); // values are 1-indexed in schema, so schema value 1 = values[0]
+        console.log('[Amp Free Balance] Detected new schema-based format:', JSON.stringify(schema));
+        
+        const quotaIdx = schema.quota;
+        const usedIdx = schema.used;
+        const replenishIdx = schema.hourlyReplenishment;
+
+        if (quotaIdx == null || usedIdx == null || replenishIdx == null) {
+          throw new Error(`API schema missing required fields. Schema: ${JSON.stringify(schema)}`);
+        }
+
+        // Schema values are 1-indexed positions in the full array (including schema element)
+        quota = parseInt(data[quotaIdx]);
+        used = parseInt(data[usedIdx]);
+        replenishmentRate = parseInt(data[replenishIdx]);
+      } else if (Array.isArray(data) && data.length >= 7) {
+        // Legacy format: flat array with fixed positions
+        quota = parseInt(data[2]);
+        used = parseInt(data[6]);
+        replenishmentRate = parseInt(data[3]);
+      } else {
+        throw new Error(`Unexpected API response format. Got: ${JSON.stringify(data).substring(0, 200)}...`);
       }
 
-      const quota = parseInt(data[2]);
-      const used = parseInt(data[6]);
       const remaining = quota - used;
       const percentUsed = (used / quota) * 100;
-      const replenishmentRate = parseInt(data[3]);
 
       // Validate parsed data
       if (isNaN(quota) || isNaN(used) || isNaN(replenishmentRate) || quota <= 0) {
