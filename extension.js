@@ -128,8 +128,10 @@ class UsageProvider {
       }
 
       console.log('[Amp Free Balance] Parsed result type:', typeof result);
+      console.log('[Amp Free Balance] Raw parsed result:', JSON.stringify(result).substring(0, 500));
 
-      let data = result.result;
+      // Support both {result: ...} wrapper and direct response
+      let data = result.result !== undefined ? result.result : result;
 
       // Handle nested JSON string
       if (typeof data === 'string') {
@@ -144,12 +146,16 @@ class UsageProvider {
 
       let quota, used, replenishmentRate;
 
-      if (Array.isArray(data) && data.length >= 2 && typeof data[0] === 'object' && data[0] !== null) {
-        // New format: first element is a schema map like {"bucket":1,"quota":2,"hourlyReplenishment":3,"used":5,...}
-        // Remaining elements are the values indexed by those positions
+      if (!Array.isArray(data) && typeof data === 'object' && data !== null && ('quota' in data || 'used' in data)) {
+        // Direct object format: {quota, used, hourlyReplenishment, ...}
+        console.log('[Amp Free Balance] Detected direct object format');
+        quota = parseInt(data.quota);
+        used = parseInt(data.used);
+        replenishmentRate = parseInt(data.hourlyReplenishment || data.replenishmentRate || 0);
+      } else if (Array.isArray(data) && data.length >= 2 && typeof data[0] === 'object' && data[0] !== null) {
+        // Schema-based format: first element is a schema map like {"bucket":1,"quota":2,"hourlyReplenishment":3,"used":5,...}
         const schema = data[0];
-        const values = data.slice(1); // values are 1-indexed in schema, so schema value 1 = values[0]
-        console.log('[Amp Free Balance] Detected new schema-based format:', JSON.stringify(schema));
+        console.log('[Amp Free Balance] Detected schema-based format:', JSON.stringify(schema));
         
         const quotaIdx = schema.quota;
         const usedIdx = schema.used;
@@ -159,7 +165,6 @@ class UsageProvider {
           throw new Error(`API schema missing required fields. Schema: ${JSON.stringify(schema)}`);
         }
 
-        // Schema values are 1-indexed positions in the full array (including schema element)
         quota = parseInt(data[quotaIdx]);
         used = parseInt(data[usedIdx]);
         replenishmentRate = parseInt(data[replenishIdx]);
@@ -169,7 +174,8 @@ class UsageProvider {
         used = parseInt(data[6]);
         replenishmentRate = parseInt(data[3]);
       } else {
-        throw new Error(`Unexpected API response format. Got: ${JSON.stringify(data).substring(0, 200)}...`);
+        const preview = JSON.stringify(data);
+        throw new Error(`Unexpected API response format. Got: ${preview ? preview.substring(0, 200) : String(data)}`);
       }
 
       const remaining = quota - used;
